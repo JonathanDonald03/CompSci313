@@ -2,18 +2,28 @@ import java.net.*;
 import java.io.*;
 
 class openSocket implements Runnable { 
-  @Override 
+  private Socket clientSocket; 
+
+  public openSocket(Socket clientSocket) { 
+    this.clientSocket = clientSocket;
+  }
+
+  @Override
   public void run() { 
-    
+    PrintWriter socketOut = new PrintWriter(clientSocket.getOutputStream(), true);
+    BufferedReader socketIn = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
   }
 }
 
 public static void acceptClients() { 
+  List<Thread> threads = new ArrayList<>();
+
   while (true) { 
     try { 
-          Socket clientSocket = serverSocket.accept();
-          PrintWriter socketOut = new PrintWriter(clientSocket.getOutputStream(), true);
-          BufferedReader socketIn = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        Socket clientSocket = serverSocket.accept();
+        openSocket client = new openSocket(clientSocket); 
+        Thread clientThread = new Thread(client); 
+        threads.add(clientThread);
         } catch (IOException e) { 
 
         }
