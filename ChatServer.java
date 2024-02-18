@@ -6,15 +6,15 @@ import java.util.List;
 
 class OpenSocket implements Runnable {
     private Socket clientSocket;
-    private String username;
+    public String username;
 
     public OpenSocket(Socket clientSocket) throws IOException {
         this.clientSocket = clientSocket;
     }
 
-    public void printMessage(String username, String message) throws IOException {
+    public void printMessage(String sender,String message) throws IOException {
         PrintWriter socketOut = new PrintWriter(clientSocket.getOutputStream(), true);
-        String printMessage = "[" + username + "]" + " " + message; 
+        String printMessage = "[" + sender + "] " + message; 
         socketOut.println(printMessage);
     }
 
@@ -30,29 +30,78 @@ class OpenSocket implements Runnable {
               boolean usernameAdded = ChatServer.checkName(clientInput);
               if (usernameAdded) {
                 this.username = clientInput;
+                String joinMessage = "[" + username + " has connected to the server]";
+                ChatServer.postMessage(this , joinMessage);
                 break;
               } else { 
-                socketOut.println("Username already in use please choose another one");
+                socketOut.println("Username already in use. Please choose another one.");
               }
             }
+
             while ((clientInput = socketIn.readLine()) != null) {
                 // Assuming ChatServer.postMessage now takes an OpenSocket object
-                
-                System.out.println("[" + username + "]" + " " +  clientInput);
-                ChatServer.postMessage(username, clientInput);
+                if (clientInput.startsWith("/")) {
+                  String targetUsername = getFirstWord(clientInput.substring(1));
+                  if (!ChatServer.checkNameWhisper(targetUsername)) { 
+                    printMessage("Server", "Username does not exist");
+                  } else { 
+                    ChatServer.whisper(this.username, targetUsername, clientInput);
+                  }
+                } else {
+                    System.out.println("[" + this.username + "] " +  clientInput);
+                    ChatServer.postMessage(this, clientInput);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
+    public String getFirstWord(String input) {
+        if (input != null && !input.trim().isEmpty()) {
+            String[] words = input.trim().split("\\s+");
+
+            if (words.length > 0) {
+                return words[0];
+            }
+        }
+        return null;
+    }
 }
 
 public class ChatServer {
     private static ServerSocket serverSocket;
-
     private static List<OpenSocket> threads = new ArrayList<>();
     private static List<String> usernames = new ArrayList<>();
     
+    public static String removeFirstWord(String message) { 
+      String[] words = message.trim().split("\\s+", 2);
+      return words[1];
+    }
+
+    public static void whisper(String senderUsername, String targetUsername, String message) throws IOException {
+      String cleanedMessage = removeFirstWord(message);
+      OpenSocket messageTarget = null;
+      for (OpenSocket client : threads) { 
+        if (client.username.equals(targetUsername)) { 
+          messageTarget = client;
+          break;
+        }
+      }
+
+      if (messageTarget != null) {
+        messageTarget.printMessage("[Whisper from " + senderUsername + "] " , cleanedMessage);
+      } else {
+        // Handle case where the target username does not exist
+        // For now, print to the sender's console
+        System.out.println("[" + senderUsername + "] Whisper failed: Username does not exist.");
+      }
+    }
+
+    public static boolean checkNameWhisper(String username) { 
+      return usernames.contains(username);
+    }
+
     public static boolean checkName(String username) { 
       boolean available = !usernames.contains(username);
 
@@ -63,10 +112,13 @@ public class ChatServer {
       return available;
     }
 
-    public static void postMessage(String username, String message) {
+    public static void postMessage(OpenSocket sender, String message) {
         try {
-            for (OpenSocket clients : threads) { 
-              clients.printMessage(username, message);
+            for (OpenSocket client : threads) { 
+              // Don't send the message back to the sender
+              
+              client.printMessage(sender.username, message);
+              
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -96,7 +148,7 @@ public class ChatServer {
 
             acceptClients();
 
-                    } catch (IOException e) {
+        } catch (IOException e) {
             System.err.println("Exception caught when trying to listen on port " + portNumber);
             System.err.println(e.getMessage());
         }
