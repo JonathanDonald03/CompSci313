@@ -15,7 +15,9 @@ class openSocket implements Runnable {
   }
 }
 
-public static void acceptClients() { 
+public class ChatServer {
+
+  public static void acceptClients() { 
   List<Thread> threads = new ArrayList<>();
 
   while (true) { 
@@ -27,18 +29,17 @@ public static void acceptClients() {
         } catch (IOException e) { 
 
         }
+    }
   }
-}
 
-public class ChatServer {
-    public static void main(String[] args) {
+  public static void main(String[] args) {
         int portNumber = 4444;
 
         try (
             ServerSocket serverSocket = new ServerSocket(portNumber);
-            acceptClients();
-            
+                     
         ) {
+            acceptClients();
             System.out.println("Server is running and waiting for a client to connect.");
             String clientInput; 
             while ((clientInput = socketIn.readLine()) != null) { 
